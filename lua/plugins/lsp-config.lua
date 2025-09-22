@@ -53,7 +53,21 @@ return {
         },
         basedpyright = {},
         marksman = {},
-        ruff = {},
+        ruff = {
+          init_options = {
+            settings = {
+              lint = { enable = true },
+              format = { enable = true },
+            },
+          },
+        },
+        sorbet = {
+          cmd = { "srb", "tc", "--lsp"  },
+          filetypes = { "ruby"  },
+          root_dir = function(fname)
+            return require("lspconfig.util").root_pattern("sorbet/config")(fname)
+          end,
+        },
         vtsls = {
           settings = {
             complete_function_calls = true,
@@ -130,11 +144,11 @@ return {
       vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, {})
       vim.keymap.set("n", "<leader>vws", vim.lsp.buf.workspace_symbol, {})
       vim.keymap.set("n", "<leader>vd", vim.diagnostic.open_float, {})
-      vim.keymap.set("n", "[d", function ()
-        vim.diagnostic.jump  { count = 1 }
+      vim.keymap.set("n", "[d", function()
+        vim.diagnostic.jump({ count = 1 })
       end, {})
-      vim.keymap.set("n", "]d", function ()
-        vim.diagnostic.jump  { count = -1 }
+      vim.keymap.set("n", "]d", function()
+        vim.diagnostic.jump({ count = -1 })
       end, {})
       vim.keymap.set("n", "<leader>vrr", vim.lsp.buf.references, {})
       vim.keymap.set("n", "<leader>vrn", vim.lsp.buf.rename, {})
