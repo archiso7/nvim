@@ -19,7 +19,6 @@ return {
           },
         },
       },
-
       {
         "saghen/blink.cmp",
         enabled = true,
@@ -28,7 +27,6 @@ return {
         version = "1.*",
         opts = {
           keymap = { preset = "default" },
-
           completion = {
             -- Disable showing for all alphanumeric keywords by default. Prefer LSP specific trigger
             -- characters.
@@ -36,7 +34,6 @@ return {
             -- Controls whether the documentation window will automatically show when selecting a completion item
             documentation = { auto_show = true },
           },
-
           signature = { enabled = true },
         },
       },
@@ -60,13 +57,6 @@ return {
               format = { enable = true },
             },
           },
-        },
-        sorbet = {
-          cmd = { "srb", "tc", "--lsp"  },
-          filetypes = { "ruby"  },
-          root_dir = function(fname)
-            return require("lspconfig.util").root_pattern("sorbet/config")(fname)
-          end,
         },
         vtsls = {
           settings = {
@@ -133,6 +123,26 @@ return {
         vim.lsp.config(server, settings)
         vim.lsp.enable(server)
       end
+
+      --Setup RuboCop as an LSP for Ruby files
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "ruby",
+        callback = function()
+          vim.lsp.start({
+            name = "rubocop",
+            cmd = { "rubocop", "--lsp"  },
+            root_dir = vim.fs.dirname(vim.fs.find({ ".rubocop.yml", ".git"  }, { upward = true  })[1]),
+          })
+        end,
+      })
+
+      -- Auto-format Ruby files on save with RuboCop
+      vim.api.nvim_create_autocmd("BufWritePre", {
+        pattern = "*.rb",
+        callback = function()
+          vim.lsp.buf.format({ timeout_ms = 5000  })
+        end,
+      })
 
       -- not included in mason lsp config
       vim.lsp.enable("sourcekit")
