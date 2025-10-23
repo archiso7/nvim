@@ -4,7 +4,7 @@ return {
   config = function ()
     require'nvim-treesitter.configs'.setup {
       -- A list of parser names, or "all" (the listed parsers MUST always be installed)
-      ensure_installed = { "javascript", "python", "typescript", "c", "lua", "vim", "vimdoc", "query", "markdown", "markdown_inline" },
+      ensure_installed = { "javascript", "python", "typescript", "c", "lua", "vim", "vimdoc", "query", "markdown", "markdown_inline", "html", "embedded_template", "ruby" },
 
       -- Install parsers synchronously (only applied to `ensure_installed`)
       sync_install = false,
@@ -22,6 +22,18 @@ return {
         -- Instead of true it can also be a list of languages
         additional_vim_regex_highlighting = false,
       },
+      
+      -- Enable indentation based on treesitter
+      indent = {
+        enable = true,
+      },
     }
+    
+    -- Ensure ERB files use eruby filetype for proper treesitter injection
+    vim.filetype.add({
+      extension = {
+        erb = 'eruby',
+      },
+    })
   end
 }

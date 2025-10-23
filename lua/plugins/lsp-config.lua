@@ -48,6 +48,9 @@ return {
             },
           },
         },
+        html = {
+          filetypes = { "html", "eruby" },
+        },
         basedpyright = {},
         marksman = {},
         ruff = {
@@ -124,23 +127,123 @@ return {
         vim.lsp.enable(server)
       end
 
-      --Setup RuboCop as an LSP for Ruby files
+      -- Setup ruby-lsp for Ruby files (respects shadowenv/bundler)
       vim.api.nvim_create_autocmd("FileType", {
-        pattern = "ruby",
+        pattern = { "ruby", "eruby" },
         callback = function()
+          local root_dir = vim.fs.dirname(vim.fs.find({ "Gemfile", ".git" }, { upward = true })[1])
+          
+          -- Determine command: use bundle exec if in Gemfile, otherwise direct
+          -- Direct call will still respect shadowenv's Ruby version and gems
+          local cmd
+          if root_dir and vim.fn.filereadable(root_dir .. "/Gemfile") == 1 then
+            -- Check if ruby-lsp is in bundle by running bundle list
+            local handle = io.popen("cd " .. root_dir .. " && bundle list 2>/dev/null | grep 'ruby-lsp'")
+            local result = handle:read("*a")
+            handle:close()
+            
+            if result and result ~= "" then
+              cmd = { "bundle", "exec", "ruby-lsp" }
+            else
+              -- Not in bundle, use gem directly (respects shadowenv Ruby)
+              cmd = { "ruby-lsp" }
+            end
+          else
+            -- No Gemfile, use gem directly
+            cmd = { "ruby-lsp" }
+          end
+          
           vim.lsp.start({
-            name = "rubocop",
-            cmd = { "rubocop", "--lsp"  },
-            root_dir = vim.fs.dirname(vim.fs.find({ ".rubocop.yml", ".git"  }, { upward = true  })[1]),
+            name = "ruby_lsp",
+            cmd = cmd,
+            root_dir = root_dir,
+            init_options = {
+              enabledFeatures = {
+                "documentHighlights",
+                "documentSymbols",
+                "foldingRanges",
+                "selectionRanges",
+                "semanticHighlighting",
+                "formatting",
+                "codeActions",
+                "diagnostics",
+                "hover",
+                "completion",
+                "definition",
+                "workspaceSymbol",
+                "signatureHelp",
+              },
+            },
           })
         end,
       })
 
-      -- Auto-format Ruby files on save with RuboCop
+      --Setup RuboCop as an LSP for Ruby files (not ERB - RuboCop can't parse ERB)
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "ruby",
+        callback = function()
+          local root_dir = vim.fs.dirname(vim.fs.find({ ".rubocop.yml", ".git"  }, { upward = true  })[1])
+          
+          -- Check if rubocop is in the bundle
+          local cmd
+          if root_dir and vim.fn.filereadable(root_dir .. "/Gemfile") == 1 then
+            local handle = io.popen("cd " .. root_dir .. " && bundle list 2>/dev/null | grep 'rubocop'")
+            local result = handle:read("*a")
+            handle:close()
+            
+            if result and result ~= "" then
+              cmd = { "bundle", "exec", "rubocop", "--lsp" }
+            else
+              cmd = { "rubocop", "--lsp" }
+            end
+          else
+            cmd = { "rubocop", "--lsp" }
+          end
+          
+          vim.lsp.start({
+            name = "rubocop",
+            cmd = cmd,
+            root_dir = root_dir,
+          })
+        end,
+      })
+
+      -- Auto-format Ruby files on save with RuboCop (only .rb files)
       vim.api.nvim_create_autocmd("BufWritePre", {
         pattern = "*.rb",
         callback = function()
           vim.lsp.buf.format({ timeout_ms = 5000  })
+        end,
+      })
+
+      -- Auto-format ERB files after save with htmlbeautifier
+      vim.api.nvim_create_autocmd("BufWritePost", {
+        pattern = "*.erb",
+        callback = function()
+          local file = vim.api.nvim_buf_get_name(0)
+          local root_dir = vim.fs.dirname(vim.fs.find({ "Gemfile", ".git" }, { upward = true })[1])
+          
+          -- Check if htmlbeautifier is in bundle or available
+          local cmd = "htmlbeautifier"
+          if root_dir and vim.fn.filereadable(root_dir .. "/Gemfile") == 1 then
+            local handle = io.popen("cd " .. root_dir .. " && bundle list 2>/dev/null | grep 'htmlbeautifier'")
+            local result = handle:read("*a")
+            handle:close()
+            
+            if result and result ~= "" then
+              cmd = "bundle exec htmlbeautifier"
+            end
+          end
+          
+          -- Check if htmlbeautifier is actually available before running
+          local check_cmd = cmd == "htmlbeautifier" and "which htmlbeautifier" or "bundle exec htmlbeautifier --version"
+          local available = vim.fn.system(check_cmd)
+          
+          if vim.v.shell_error == 0 then
+            -- Format the file and reload
+            vim.cmd("silent !" .. cmd .. " " .. vim.fn.shellescape(file))
+            vim.cmd("checktime")
+          end
         end,
       })
 
