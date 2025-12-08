@@ -40,6 +40,51 @@ return {
     },
     config = function()
       local servers = {
+        rust_analyzer = {
+          settings = {
+            ["rust-analyzer"] = {
+              cargo = {
+                allFeatures = true,
+              },
+              checkOnSave = true,
+              inlayHints = {
+                enable = true,
+                bindingModeHints = {
+                  enable = true,
+                },
+                chainingHints = {
+                  enable = true,
+                },
+                closingBraceHints = {
+                  enable = true,
+                },
+                discardableVariableHints = {
+                  enable = true,
+                },
+                implicitDrops = {
+                  enable = true,
+                },
+                lifetimeElisionHints = {
+                  enable = "always",
+                  useParameterNames = true,
+                },
+                maxLength = 40,
+                parameterHints = {
+                  enable = true,
+                },
+                reborrowHints = {
+                  enable = "always",
+                },
+                renderColons = true,
+                typeHints = {
+                  enable = true,
+                  hideClosureInitialization = false,
+                  hideNamedConstructor = false,
+                },
+              },
+            },
+          },
+        },
         harper_ls = {
           filetypes = { "markdown" },
           settings = {
@@ -244,6 +289,14 @@ return {
             vim.cmd("silent !" .. cmd .. " " .. vim.fn.shellescape(file))
             vim.cmd("checktime")
           end
+        end,
+      })
+
+      -- Auto-format Rust files on save with rustfmt
+      vim.api.nvim_create_autocmd("BufWritePre", {
+        pattern = "*.rs",
+        callback = function()
+          vim.lsp.buf.format({ timeout_ms = 5000 })
         end,
       })
 
