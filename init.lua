@@ -10,6 +10,10 @@
 --
 -- Keymap reference: see KEYMAPS.md
 
+-- Platform first: it sets the clipboard provider and, on Windows, the shell
+-- that later plugin builds depend on.
+require("config.platform").setup()
+
 require("config.options")
 require("config.keymaps")
 require("config.autocmds")

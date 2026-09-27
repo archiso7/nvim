@@ -9,6 +9,7 @@
 --
 -- Namespace: <leader>r for running tests.
 
+local platform = require("config.platform")
 local has_shadowenv = vim.fn.executable("shadowenv") == 1
 local has_dev = vim.fn.isdirectory("/opt/dev") == 1
 local is_work = has_shadowenv or has_dev
@@ -111,7 +112,7 @@ return {
   {
     -- Send buffers/selections to a pi or claude pane over tmux.
     "MSmaili/wiremux.nvim",
-    cond = vim.env.TMUX ~= nil,
+    cond = platform.is_tmux,
     event = "VeryLazy",
     opts = {
       targets = {

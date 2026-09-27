@@ -8,7 +8,7 @@
 --   mason = false    do not ask mason to install it (project- or OS-provided)
 --   enabled = false  skip the server entirely on this machine
 
-local is_mac = vim.uv.os_uname().sysname == "Darwin"
+local platform = require("config.platform")
 local has_shadowenv = vim.fn.executable("shadowenv") == 1
 
 return {
@@ -118,6 +118,6 @@ return {
   -- Ships with Xcode; not a mason package and not available off macOS.
   sourcekit = {
     mason = false,
-    enabled = is_mac,
+    enabled = platform.is_mac,
   },
 }
