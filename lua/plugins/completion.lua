@@ -21,7 +21,7 @@ return {
   version = "1.*",
   dependencies = { "rafamadriz/friendly-snippets" },
   opts = {
-    keymap = { preset = "enter" },
+    keymap = { preset = "default" },
     appearance = { nerd_font_variant = "mono" },
     completion = {
       accept = { auto_brackets = { enabled = true } },
@@ -30,8 +30,8 @@ return {
         draw = {
           treesitter = { "lsp" },
           columns = {
-            { "label", "label_description", gap = 1 },
-            { "kind_icon", "kind", gap = 1 },
+            { "label",     "label_description", gap = 1 },
+            { "kind_icon", "kind",              gap = 1 },
           },
         },
       },
