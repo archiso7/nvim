@@ -160,6 +160,25 @@ return {
         },
       }
 
+      -- ruby_lsp is project-managed via shadowenv, not mason
+      vim.lsp.config("ruby_lsp", {
+        cmd = { "shadowenv", "exec", "--", "ruby-lsp" },
+        cmd_env = { DISABLE_SPRING = "1" },
+        filetypes = { "ruby", "eruby" },
+        root_markers = { "Gemfile", ".git" },
+        init_options = {
+          formatter = "rubocop_internal",
+          linters = { "rubocop" },
+          addonSettings = {
+            ["Ruby LSP Rails"] = {
+              enablePendingMigrationsPrompt = false,
+            },
+          },
+          experimentalFeaturesEnabled = true,
+        },
+      })
+      vim.lsp.enable("ruby_lsp")
+
       local ensure_installed = vim.tbl_keys(servers or {})
 
       require("mason").setup()
@@ -172,118 +191,31 @@ return {
         vim.lsp.enable(server)
       end
 
-      -- Setup ruby-lsp for Ruby files (respects shadowenv/bundler)
-      vim.api.nvim_create_autocmd("FileType", {
-        pattern = { "ruby", "eruby" },
-        callback = function()
-          local root_dir = vim.fs.dirname(vim.fs.find({ "Gemfile", ".git" }, { upward = true })[1])
-          
-          -- Determine command: use bundle exec if in Gemfile, otherwise direct
-          -- Direct call will still respect shadowenv's Ruby version and gems
-          local cmd
-          if root_dir and vim.fn.filereadable(root_dir .. "/Gemfile") == 1 then
-            -- Check if ruby-lsp is in bundle by running bundle list
-            local handle = io.popen("cd " .. root_dir .. " && bundle list 2>/dev/null | grep 'ruby-lsp'")
-            local result = handle:read("*a")
-            handle:close()
-            
-            if result and result ~= "" then
-              cmd = { "bundle", "exec", "ruby-lsp" }
-            else
-              -- Not in bundle, use gem directly (respects shadowenv Ruby)
-              cmd = { "ruby-lsp" }
-            end
-          else
-            -- No Gemfile, use gem directly
-            cmd = { "ruby-lsp" }
-          end
-          
-          vim.lsp.start({
-            name = "ruby_lsp",
-            cmd = cmd,
-            root_dir = root_dir,
-            init_options = {
-              enabledFeatures = {
-                "documentHighlights",
-                "documentSymbols",
-                "foldingRanges",
-                "selectionRanges",
-                "semanticHighlighting",
-                "formatting",
-                "codeActions",
-                "diagnostics",
-                "hover",
-                "completion",
-                "definition",
-                "workspaceSymbol",
-                "signatureHelp",
-              },
-            },
-          })
-        end,
-      })
-
-      --Setup RuboCop as an LSP for Ruby files (not ERB - RuboCop can't parse ERB)
-      vim.api.nvim_create_autocmd("FileType", {
-        pattern = "ruby",
-        callback = function()
-          local root_dir = vim.fs.dirname(vim.fs.find({ ".rubocop.yml", ".git"  }, { upward = true  })[1])
-          
-          -- Check if rubocop is in the bundle
-          local cmd
-          if root_dir and vim.fn.filereadable(root_dir .. "/Gemfile") == 1 then
-            local handle = io.popen("cd " .. root_dir .. " && bundle list 2>/dev/null | grep 'rubocop'")
-            local result = handle:read("*a")
-            handle:close()
-            
-            if result and result ~= "" then
-              cmd = { "bundle", "exec", "rubocop", "--lsp" }
-            else
-              cmd = { "rubocop", "--lsp" }
-            end
-          else
-            cmd = { "rubocop", "--lsp" }
-          end
-          
-          vim.lsp.start({
-            name = "rubocop",
-            cmd = cmd,
-            root_dir = root_dir,
-          })
-        end,
-      })
-
-      -- Auto-format Ruby files on save with RuboCop (only .rb files)
-      vim.api.nvim_create_autocmd("BufWritePre", {
-        pattern = "*.rb",
-        callback = function()
-          vim.lsp.buf.format({ timeout_ms = 5000  })
-        end,
-      })
-
       -- Auto-format ERB files after save with htmlbeautifier
       vim.api.nvim_create_autocmd("BufWritePost", {
         pattern = "*.erb",
         callback = function()
           local file = vim.api.nvim_buf_get_name(0)
           local root_dir = vim.fs.dirname(vim.fs.find({ "Gemfile", ".git" }, { upward = true })[1])
-          
+
           -- Check if htmlbeautifier is in bundle or available
           local cmd = "htmlbeautifier"
           if root_dir and vim.fn.filereadable(root_dir .. "/Gemfile") == 1 then
-            local handle = io.popen("cd " .. root_dir .. " && bundle list 2>/dev/null | grep 'htmlbeautifier'")
+            local handle =
+                io.popen("cd " .. root_dir .. " && bundle list 2>/dev/null | grep 'htmlbeautifier'")
             local result = handle:read("*a")
             handle:close()
-            
+
             if result and result ~= "" then
               cmd = "bundle exec htmlbeautifier"
             end
           end
-          
+
           -- Check if htmlbeautifier is actually available before running
-          local check_cmd = cmd == "htmlbeautifier" and "which htmlbeautifier" or "bundle exec htmlbeautifier --version"
+          local check_cmd = cmd == "htmlbeautifier" and "which htmlbeautifier"
+              or "bundle exec htmlbeautifier --version"
           local available = vim.fn.system(check_cmd)
-          
+
           if vim.v.shell_error == 0 then
             -- Format the file and reload
             vim.cmd("silent !" .. cmd .. " " .. vim.fn.shellescape(file))
@@ -302,23 +234,30 @@ return {
 
       -- not included in mason lsp config
       vim.lsp.enable("sourcekit")
+      -- Auto-format Ruby files on save via ruby_lsp (rubocop_internal)
+      vim.api.nvim_create_autocmd("BufWritePre", {
+        pattern = "*.rb",
+        callback = function()
+          vim.lsp.buf.format({ timeout_ms = 5000 })
+        end,
+      })
+
       vim.diagnostic.config({
         virtual_text = true,
       })
-      vim.keymap.set("n", "K", vim.lsp.buf.hover, {})
-      vim.keymap.set("n", "gd", vim.lsp.buf.definition, {})
-      vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, {})
-      vim.keymap.set("n", "<leader>vws", vim.lsp.buf.workspace_symbol, {})
-      vim.keymap.set("n", "<leader>vd", vim.diagnostic.open_float, {})
-      vim.keymap.set("n", "[d", function()
-        vim.diagnostic.jump({ count = 1 })
-      end, {})
-      vim.keymap.set("n", "]d", function()
-        vim.diagnostic.jump({ count = -1 })
-      end, {})
-      vim.keymap.set("n", "<leader>vrr", vim.lsp.buf.references, {})
-      vim.keymap.set("n", "<leader>vrn", vim.lsp.buf.rename, {})
-      vim.keymap.set("i", "<C-h>", vim.lsp.buf.signature_help, {})
+      vim.keymap.set("n", "<leader>td", function()
+        local current = vim.diagnostic.config()
+        vim.diagnostic.config({ virtual_text = not current.virtual_text })
+      end, { desc = "Toggle diagnostic virtual text" })
+      vim.keymap.set("n", "K",            vim.lsp.buf.hover,              { desc = "Hover docs" })
+      vim.keymap.set("n", "<leader>ca",   vim.lsp.buf.code_action,        { desc = "Code action" })
+      vim.keymap.set("n", "<leader>vws",  vim.lsp.buf.workspace_symbol,   { desc = "Workspace symbol" })
+      vim.keymap.set("n", "<leader>vd",   vim.diagnostic.open_float,      { desc = "Diagnostic float" })
+      vim.keymap.set("n", "<leader>vrn",  vim.lsp.buf.rename,             { desc = "Rename symbol" })
+      vim.keymap.set("n", "[d", function() vim.diagnostic.jump({ count = 1 }) end,  { desc = "Next diagnostic" })
+      vim.keymap.set("n", "]d", function() vim.diagnostic.jump({ count = -1 }) end, { desc = "Prev diagnostic" })
+      vim.keymap.set("i", "<C-h>", vim.lsp.buf.signature_help, { desc = "Signature help" })
+      -- gd / gr / gi are handled by snacks.picker (see snacks.lua)
     end,
   },
 }

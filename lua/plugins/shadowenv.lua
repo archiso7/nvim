@@ -1,3 +1,4 @@
 return {
-  "Shopify/shadowenv"
+  "Shopify/shadowenv.vim",
+  lazy = false,
 }
